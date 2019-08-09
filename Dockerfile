@@ -1,11 +1,11 @@
 FROM golang
 
-MAINTAINER Brent Salisbury <brent.salisbury@gmail.com>
+MAINTAINER Adivandhya B R <adivandhya@gmail.com>
 
-ADD . /go/src/github.com/nerdalert/nflow-generator
+ADD . /go/src/github.com/admin/nflow-generator
 
 RUN go get github.com/Sirupsen/logrus \
     && go get github.com/jessevdk/go-flags \
-    && go install github.com/nerdalert/nflow-generator
+    && go install github.com/admin/nflow-generator
 
 ENTRYPOINT ["/go/bin/nflow-generator"]

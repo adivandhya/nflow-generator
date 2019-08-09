@@ -11,24 +11,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"time"
-)
-
-type Proto int
-
-const (
-	FTP Proto = iota + 1
-	SSH
-	DNS
-	HTTP
-	HTTPS
-	NTP
-	SNMP
-	IMAPS
-	MYSQL
-	HTTPS_ALT
-	P2P
-	BITTORRENT
+	"strings"
 )
 
 var opts struct {
@@ -37,11 +20,14 @@ var opts struct {
 	SpikeProto    string `short:"s" long:"spike" description:"run a second thread generating a spike for the specified protocol"`
     FalseIndex    bool   `short:"f" long:"false-index" description:"generate false SNMP interface indexes, otherwise set to 0"`
     Help          bool   `short:"h" long:"help" description:"show nflow-generator help"`
+    IpRange       string `short:"i" long:"iprange" description:"specify the list of ip address combinations for the netflow. eg: 172.21.1.1:8023-192.3.4.3:80,10.1.2.3:34565-4.3.2.5:443"`
 }
 
 func main() {
 
+
 	_, err := flags.Parse(&opts)
+	fmt.Printf("%+v\n", opts)
 	if err != nil {
 		showUsage()
 		os.Exit(1)
@@ -51,6 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 	if opts.CollectorIP == "" || opts.CollectorPort == "" {
+
 		showUsage()
 		os.Exit(1)
 	}
@@ -66,35 +53,14 @@ func main() {
 	log.Infof("sending netflow data to a collector ip: %s and port: %s. \n"+
 		"Use ctrl^c to terminate the app.", opts.CollectorIP, opts.CollectorPort)
 
-	for {
-		rand.Seed(time.Now().Unix())
-		n := randomNum(50, 1000)
-		// add spike data
-		if opts.SpikeProto != "" {
-			GenerateSpike()
-		}
-		if n > 900 {
-			data := GenerateNetflow(8)
-			buffer := BuildNFlowPayload(data)
-			_, err := conn.Write(buffer.Bytes())
-			if err != nil {
-				log.Fatal("Error connecting to the target collector: ", err)
-			}
-		} else {
-			data := GenerateNetflow(16)
-			buffer := BuildNFlowPayload(data)
-			_, err := conn.Write(buffer.Bytes())
-			if err != nil {
-				log.Fatal("Error connecting to the target collector: ", err)
-			}
-		}
-		// add some periodic spike data
-		if n < 150 {
-			sleepInt := time.Duration(3000)
-			time.Sleep(sleepInt * time.Millisecond)
-		}
-		sleepInt := time.Duration(n)
-		time.Sleep(sleepInt * time.Millisecond)
+	ipRange := opts.IpRange
+	fmt.Printf(ipRange)
+	ipList := strings.Split(ipRange, ",")
+	data := GenerateNetflow(ipList)
+	buffer := BuildNFlowPayload(data)
+	_, err = conn.Write(buffer.Bytes())
+	if err != nil {
+		log.Fatal("Error connecting to the target collector: ", err)
 	}
 }
 
