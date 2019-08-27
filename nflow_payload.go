@@ -8,6 +8,7 @@ import (
 	"time"
 	"strings"
 	"strconv"
+	"fmt"
 )
 
 // Start time for this instance, used to compute sysUptime
@@ -83,9 +84,9 @@ func BuildNFlowPayload(data Netflow) bytes.Buffer {
 }
 
 //Generate a netflow packet w/ user-defined record count
-func GenerateNetflow(ipList []string) Netflow {
+func GenerateNetflow(ipList []string, eventTimeSec uint32, protocol int) Netflow {
 	data := new(Netflow)
-	header := CreateNFlowHeader(len(ipList))
+	header := CreateNFlowHeader(len(ipList), eventTimeSec)
 	records := []NetflowPayload{}
 //srcIp string, destIp string, srcPort int, protocol int, subnet int
 	for _, ipPair := range ipList {
@@ -98,7 +99,7 @@ func GenerateNetflow(ipList []string) Netflow {
 		destIP := strings.Split(destIpPort, ":")[0]
 		destPort,_ := strconv.Atoi(strings.Split(destIpPort, ":")[1])
 
-		records = append(records, CreateParameterizedFlow(srcIP, destIP, srcPort, destPort, 6, 24))
+		records = append(records, CreateParameterizedFlow(srcIP, destIP, srcPort, destPort, protocol, 24))
 	}
 
 	data.Header = header
@@ -107,11 +108,9 @@ func GenerateNetflow(ipList []string) Netflow {
 }
 
 //Generate and initialize netflow header
-func CreateNFlowHeader(recordCount int) NetflowHeader {
+func CreateNFlowHeader(recordCount int, eventTimeSeconds uint32) NetflowHeader {
 
 	t := time.Now().UnixNano()
-	sec := t / int64(time.Second)
-	nsec := t - sec*int64(time.Second)
 	sysUptime = uint32((t-StartTime) / int64(time.Millisecond))+1000
 	flowSequence++
 
@@ -119,8 +118,8 @@ func CreateNFlowHeader(recordCount int) NetflowHeader {
 	h.Version = 5
 	h.FlowCount = uint16(recordCount)
 	h.SysUptime = sysUptime
-	h.UnixSec = uint32(sec)
-	h.UnixMsec = uint32(nsec)
+	h.UnixSec = eventTimeSeconds
+	h.UnixMsec = uint32(eventTimeSeconds * 1000)
 	h.FlowSequence = flowSequence
 	h.EngineType = 1
 	h.EngineId = 0
@@ -130,7 +129,6 @@ func CreateNFlowHeader(recordCount int) NetflowHeader {
 
 func CreateParameterizedFlow(srcIp string, destIp string, srcPort int, dstPort int, protocol int, subnet int) NetflowPayload {
 	payload := new(NetflowPayload)
-	log.Printf("here: " + srcIp + " " + destIp)
 	payload.SrcIP = IPtoUint32(srcIp)
 	payload.DstIP = IPtoUint32(destIp)
 	payload.NextHopIP = IPtoUint32("172.199.15.1")
@@ -138,6 +136,14 @@ func CreateParameterizedFlow(srcIp string, destIp string, srcPort int, dstPort i
 	payload.DstPort = uint16(dstPort)
 
 	FillCommonFields(payload, PAYLOAD_AVG_MD, protocol, subnet)
+	fmt.Println("\nRecord Details:")
+	fmt.Println("")
+	fmt.Println("srcIP: ", srcIp)
+	fmt.Println("dstIP: ", destIp)
+	fmt.Println("srcPort: ", srcPort)
+	fmt.Println("dstPort: ", dstPort)
+	fmt.Println("")
+	fmt.Println("")
 	return *payload
 }
 
